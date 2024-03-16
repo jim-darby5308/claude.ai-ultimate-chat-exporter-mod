@@ -16,6 +16,7 @@
         const result = [];
 
         Array.from(elements).forEach(el => {
+            console.log(elements);
             const clone = el.cloneNode(true);
             const unwantedElements = clone.querySelectorAll('svg, button');
             unwantedElements.forEach(unwantedEl => {
@@ -85,7 +86,7 @@
         }
 
         button.addEventListener("click", function() {
-            const text = getTextByClass('col-start-2');
+            const text = getTextByClass('font-claude-message');
             const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
             const url = URL.createObjectURL(blob);
 
