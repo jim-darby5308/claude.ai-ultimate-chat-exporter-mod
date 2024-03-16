@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Export Claude.Ai
 // @description  Download the conversation with Claude
-// @version      1.2
+// @version      1.3
 // @namespace    https://github.com/TheAlanK/
 // @grant        none
 // @match        *://claude.ai/*
