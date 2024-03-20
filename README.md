@@ -1,5 +1,5 @@
-# export-claude
-Simple Userscript that creates a buttom to export a conversation to a .txt file. 
+This project is a fork of "Export Claude.Ai" (https://github.com/TheAlanK/export-claude), licensed under the MIT license.
 
-Limitations
-- Must update everytime the DOM is changed
+Adds "Export All Chats" and "Export Chat" buttons to Claude.ai UI.
+The "Export All Chats" option can only be accessed from the https://claude.ai/chats URL.
+When saving, the user is prompted for json and txt format options.

@@ -1,110 +1,230 @@
 // ==UserScript==
-// @name         Export Claude.Ai
-// @description  Download the conversation with Claude
-// @version      1.3
-// @namespace    https://github.com/TheAlanK/
-// @grant        none
-// @match        *://claude.ai/*
+// @name         Claude.ai Ultimate Chat Exporter
+// @description  Adds "Export All Chats" and "Export Chat" buttons to Claude.ai
+// @version      1.0
+// @author       Geo Anima
+// @namespace    https://github.com/GeoAnima/claude.ai-ultimate-chat-exporter
+// @match        https://claude.ai/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_download
 // @license      MIT
 // ==/UserScript==
 
-(function() {
+/*
+NOTES:
+- This project is a fork of "Export Claude.Ai" (https://github.com/TheAlanK/export-claude), licensed under the MIT license.
+- The "Export All Chats" option can only be accessed from the https://claude.ai/chats URL.
+- When saving, the user is prompted for json and txt format options.
+*/
+
+(function () {
     'use strict';
 
-    function getTextByClass(className) {
-        const elements = document.getElementsByClassName(className);
-        const result = [];
+    const API_BASE_URL = 'https://claude.ai/api';
 
-        Array.from(elements).forEach(el => {
-            console.log(elements);
-            const clone = el.cloneNode(true);
-            const unwantedElements = clone.querySelectorAll('svg, button');
-            unwantedElements.forEach(unwantedEl => {
-                unwantedEl.remove();
+    // Function to make API requests
+    function apiRequest(method, endpoint, data = null, headers = {}) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: method,
+                url: `${API_BASE_URL}${endpoint}`,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...headers,
+                },
+                data: data ? JSON.stringify(data) : null,
+                onload: (response) => {
+                    if (response.status >= 200 && response.status < 300) {
+                        resolve(JSON.parse(response.responseText));
+                    } else {
+                        reject(new Error(`API request failed with status ${response.status}`));
+                    }
+                },
+                onerror: (error) => {
+                    reject(error);
+                },
             });
-            result.push(clone.innerText.trim());
         });
-
-        return result.join("\n");
     }
 
-    function addButton() {
-        const inputFile = document.querySelector('[data-testid="file-upload"]');
-        if (!inputFile) return;
+    // Function to get the organization ID
+    async function getOrganizationId() {
+        const organizations = await apiRequest('GET', '/organizations');
+        return organizations[0].uuid;
+    }
 
-        const container = inputFile.closest('div');
-        if (!container) return;
+    // Function to get all conversations
+    async function getAllConversations(orgId) {
+        return await apiRequest('GET', `/organizations/${orgId}/chat_conversations`);
+    }
 
-        if (document.getElementById('customExportButton')) return;
+    // Function to get conversation history
+    async function getConversationHistory(orgId, chatId) {
+        return await apiRequest('GET', `/organizations/${orgId}/chat_conversations/${chatId}`);
+    }
 
-        const button = document.createElement("button");
-        button.id = 'customExportButton';
-        button.setAttribute("title", "Download Chat");
-        const svgIcon = `
-          <svg width="16px" height="16px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M23 22C23 22.5523 22.5523 23 22 23H2C1.44772 23 1 22.5523 1 22C1 21.4477 1.44772 21 2 21H22C22.5523 21 23 21.4477 23 22Z" fill="#0F0F0F"/>
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3099 18.6881C12.5581 19.3396 11.4419 19.3396 10.6901 18.6881L5.87088 14.5114C4.47179 13.2988 5.32933 11 7.18074 11L9.00001 11V3C9.00001 1.89543 9.89544 1 11 1L13 1C14.1046 1 15 1.89543 15 3L15 11H16.8193C18.6707 11 19.5282 13.2988 18.1291 14.5114L13.3099 18.6881ZM11.3451 16.6091C11.7209 16.9348 12.2791 16.9348 12.6549 16.6091L16.8193 13H14.5C13.6716 13 13 12.3284 13 11.5V3L11 3V11.5C11 12.3284 10.3284 13 9.50001 13L7.18074 13L11.3451 16.6091Z" fill="#0F0F0F"/>
-          </svg>
-        `;
-
-        button.innerHTML = svgIcon;
-
-        button.style.cssText = `
-            -webkit-text-size-adjust: 100%;
-            tab-size: 4;
-            -webkit-font-smoothing: antialiased;
-            border: 0 solid #e5e7eb;
-            box-sizing: border-box;
-            font-family: inherit;
-            font-size: 100%;
-            line-height: inherit;
-            margin: 0;
-            text-transform: none;
-            -webkit-appearance: button;
-            background-image: none;
-            cursor: pointer;
-            display: inline-flex;
-            aspect-ratio: 1/1;
-            align-items: center;
-            justify-content: center;
-            gap: .25rem;
-            border-radius: .75rem;
-            background-color: hsl(var(--color-uivory-300)/var(--tw-bg-opacity));
-            color: rgb(255 255 255);
-            transition-property: background-color, color, border-color, text-decoration-color, fill, stroke;
-            transition-timing-function: cubic-bezier(.4,0,.2,1);
-            transition-duration: .15s;
-            font-weight: 500;
-        `;
-
-        button.onmouseover = function() {
-            this.style.backgroundColor = 'hsl(37, 26%, 78%)';
-        }
-
-        button.onmouseout = function() {
-            this.style.backgroundColor = 'hsl(var(--color-uivory-300)/var(--tw-bg-opacity))';
-        }
-
-        button.addEventListener("click", function() {
-            const text = getTextByClass('font-claude-message');
-            const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+    // Function to download data as a file
+    function downloadData(data, filename, format) {
+        return new Promise((resolve, reject) => {
+            let content = '';
+            if (format === 'json') {
+                content = JSON.stringify(data, null, 2);
+            } else if (format === 'txt') {
+                content = convertToTxtFormat(data);
+            }
+            const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
-
-            const link = document.createElement("a");
-            link.download = 'extracted.txt';
-            link.href = url;
-            link.click();
-
-            URL.revokeObjectURL(url);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                resolve();
+            }, 100);
         });
-
-        container.appendChild(button);
     }
 
-    const observer = new MutationObserver(addButton);
+    // Function to convert conversation data to TXT format
+    function convertToTxtFormat(data) {
+        let txtContent = '';
+        data.chat_messages.forEach((message) => {
+            const sender = message.sender === 'human' ? 'User' : 'Claude';
+            txtContent += `${sender}:\n${message.text}\n\n`;
+        });
+        return txtContent.trim();
+    }
 
-    observer.observe(document.body, {childList: true, subtree: true});
+    // Function to export a single chat
+    async function exportChat(orgId, chatId, format, showAlert = true) {
+        try {
+            const chatData = await getConversationHistory(orgId, chatId);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `${chatData.name}_${timestamp}.${format}`;
+            await downloadData(chatData, filename, format);
+            if (showAlert) {
+                alert(`Chat exported successfully in ${format.toUpperCase()} format!`);
+            }
+        } catch (error) {
+            alert('Error exporting chat. Please try again later.');
+        }
+    }
 
-    addButton();
+    // Function to export all chats
+    async function exportAllChats(format) {
+        try {
+            const orgId = await getOrganizationId();
+            const conversations = await getAllConversations(orgId);
+            for (const conversation of conversations) {
+                await exportChat(orgId, conversation.uuid, format, false);
+            }
+            alert(`All chats exported successfully in ${format.toUpperCase()} format!`);
+        } catch (error) {
+            alert('Error exporting all chats. Please try again later.');
+        }
+    }
 
+    // Function to create a button
+    function createButton(text, onClick) {
+        const button = document.createElement('button');
+        button.textContent = text;
+        button.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 9999;
+        `;
+        button.addEventListener('click', onClick);
+        document.body.appendChild(button);
+    }
+
+    // Function to remove existing export buttons
+    function removeExportButtons() {
+        const existingButtons = document.querySelectorAll('button[style*="position: fixed"]');
+        existingButtons.forEach((button) => {
+            button.remove();
+        });
+    }
+
+    // Function to initialize the export functionality
+    async function initExportFunctionality() {
+        removeExportButtons();
+        const currentUrl = window.location.href;
+        if (currentUrl.includes('/chat/')) {
+            const urlParts = currentUrl.split('/');
+            const chatId = urlParts[urlParts.length - 1];
+            const orgId = await getOrganizationId();
+            createButton('Export Chat', async () => {
+                const format = prompt('Enter the export format (json or txt):', 'json');
+                if (format === 'json' || format === 'txt') {
+                    await exportChat(orgId, chatId, format);
+                } else {
+                    alert('Invalid export format. Please enter either "json" or "txt".');
+                }
+            });
+        } else if (currentUrl.includes('/chats')) {
+            createButton('Export All Chats', async () => {
+                const format = prompt('Enter the export format (json or txt):', 'json');
+                if (format === 'json' || format === 'txt') {
+                    await exportAllChats(format);
+                } else {
+                    alert('Invalid export format. Please enter either "json" or "txt".');
+                }
+            });
+        }
+    }
+
+    // Function to observe changes in the URL
+    function observeUrlChanges(callback) {
+        let lastUrl = location.href;
+        const observer = new MutationObserver(() => {
+            const url = location.href;
+            if (url !== lastUrl) {
+                lastUrl = url;
+                callback();
+            }
+        });
+        const config = { subtree: true, childList: true };
+        observer.observe(document, config);
+    }
+
+    // Function to observe changes in the DOM
+    function observeDOMChanges(selector, callback) {
+        const observer = new MutationObserver((mutations) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                if (document.readyState === 'complete') {
+                    observer.disconnect();
+                    callback();
+                }
+            }
+        });
+
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+        });
+    }
+
+    // Function to initialize the script
+    async function init() {
+        await initExportFunctionality();
+        // Observe URL changes and reinitialize export functionality
+        observeUrlChanges(async () => {
+            await initExportFunctionality();
+        });
+    }
+
+    // Wait for the desired element to be present in the DOM before initializing the script
+    observeDOMChanges('.grecaptcha-badge', init);
 })();
