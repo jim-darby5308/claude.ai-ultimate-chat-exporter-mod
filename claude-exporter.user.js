@@ -2,8 +2,8 @@
 // @name         Claude.ai Ultimate Chat Exporter
 // @description  Adds "Export All Chats" and "Export Chat" buttons to Claude.ai
 // @version      1.0
-// @author       Geo Anima
-// @namespace    https://github.com/GeoAnima/claude.ai-ultimate-chat-exporter
+// @author       Jim Darby
+// @namespace    https://github.com/jim-darby5308/claude.ai-ultimate-chat-exporter-mod
 // @match        https://claude.ai/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_download
@@ -133,7 +133,7 @@ NOTES:
         button.textContent = text;
         button.style.cssText = `
             position: fixed;
-            bottom: 20px;
+            bottom: 80px;
             right: 20px;
             padding: 10px 20px;
             background-color: #4CAF50;
@@ -159,27 +159,21 @@ NOTES:
     // Function to initialize the export functionality
     async function initExportFunctionality() {
         removeExportButtons();
+        createFormatRadioButtons();
+    
         const currentUrl = window.location.href;
         if (currentUrl.includes('/chat/')) {
             const urlParts = currentUrl.split('/');
             const chatId = urlParts[urlParts.length - 1];
             const orgId = await getOrganizationId();
             createButton('Export Chat', async () => {
-                const format = prompt('Enter the export format (json or txt):', 'json');
-                if (format === 'json' || format === 'txt') {
-                    await exportChat(orgId, chatId, format);
-                } else {
-                    alert('Invalid export format. Please enter either "json" or "txt".');
-                }
+                const format = getSelectedFormat();
+                await exportChat(orgId, chatId, format);
             });
         } else if (currentUrl.includes('/chats')) {
             createButton('Export All Chats', async () => {
-                const format = prompt('Enter the export format (json or txt):', 'json');
-                if (format === 'json' || format === 'txt') {
-                    await exportAllChats(format);
-                } else {
-                    alert('Invalid export format. Please enter either "json" or "txt".');
-                }
+                const format = getSelectedFormat();
+                await exportAllChats(format);
             });
         }
     }
@@ -214,6 +208,43 @@ NOTES:
             childList: true,
             subtree: true,
         });
+    }
+
+    // Function to create radio buttons for format selection
+    function createFormatRadioButtons() {
+        const container = document.createElement('div');
+        container.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+        `;
+    
+        const jsonLabel = document.createElement('label');
+        jsonLabel.innerHTML = '<input type="radio" name="format" value="json" checked> JSON';
+        jsonLabel.style.marginRight = '10px';
+        container.appendChild(jsonLabel);
+    
+        const txtLabel = document.createElement('label');
+        txtLabel.innerHTML = '<input type="radio" name="format" value="txt"> TXT';
+        container.appendChild(txtLabel);
+    
+        document.body.appendChild(container);
+    }
+    
+    // Function to get the selected format from radio buttons
+    function getSelectedFormat() {
+        const formatRadios = document.querySelectorAll('input[name="format"]');
+        for (const radio of formatRadios) {
+            if (radio.checked) {
+                return radio.value;
+            }
+        }
+        return 'json';
     }
 
     // Function to initialize the script
