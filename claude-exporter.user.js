@@ -215,7 +215,7 @@ NOTES:
         const container = document.createElement('div');
         container.style.cssText = `
             position: fixed;
-            bottom: 120px;
+            bottom: 85px;
             right: 20px;
             background-color: white;
             padding: 10px;
@@ -225,12 +225,12 @@ NOTES:
         `;
     
         const jsonLabel = document.createElement('label');
-        jsonLabel.innerHTML = '<input type="radio" name="format" value="json" checked> JSON';
+        jsonLabel.innerHTML = '<input type="radio" name="format" value="json"> json';
         jsonLabel.style.marginRight = '10px';
         container.appendChild(jsonLabel);
     
         const txtLabel = document.createElement('label');
-        txtLabel.innerHTML = '<input type="radio" name="format" value="txt"> TXT';
+        txtLabel.innerHTML = '<input type="radio" name="format" value="txt" checked> txt';
         container.appendChild(txtLabel);
     
         document.body.appendChild(container);
