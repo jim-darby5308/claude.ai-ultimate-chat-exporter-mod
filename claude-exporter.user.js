@@ -133,7 +133,7 @@ NOTES:
         button.textContent = text;
         button.style.cssText = `
             position: fixed;
-            bottom: 80px;
+            bottom: 20px;
             right: 20px;
             padding: 10px 20px;
             background-color: #4CAF50;
